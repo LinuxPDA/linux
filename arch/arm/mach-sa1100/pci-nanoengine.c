@@ -28,7 +28,7 @@
 #include <asm/mach-types.h>
 
 #include <mach/nanoengine.h>
-#include <mach/hardware.h>
+#include <mach/generic.h>
 
 static DEFINE_SPINLOCK(nano_lock);
 
@@ -257,9 +257,8 @@ int __init pci_nanoengine_setup(int nr, struct pci_sys_data *sys)
 		/* Enable alternate memory bus master mode, see
 		 * "Intel StrongARM SA1110 Developer's Manual",
 		 * section 10.8, "Alternate Memory Bus Master Mode". */
-		GPDR = (GPDR & ~GPIO_MBREQ) | GPIO_MBGNT;
-		GAFR |= GPIO_MBGNT | GPIO_MBREQ;
-		TUCR |= TUCR_MBGPIO;
+		sa1110_mb_enable();
+
 	}
 
 	return ret;
