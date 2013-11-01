@@ -133,6 +133,7 @@ MACHINE_START(PLEB, "PLEB")
 	.map_io		= pleb_map_io,
 	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
+	.handle_irq	= sa1100_handle_irq,
 	.init_time	= sa1100_timer_init,
 	.init_machine   = pleb_init,
 	.init_late	= sa11x0_init_late,

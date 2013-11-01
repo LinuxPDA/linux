@@ -335,6 +335,7 @@ MACHINE_START(BADGE4, "Hewlett-Packard Laboratories BadgePAD 4")
 	.map_io		= badge4_map_io,
 	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
+	.handle_irq	= sa1100_handle_irq,
 	.init_late	= sa11x0_init_late,
 	.init_time	= sa1100_timer_init,
 #ifdef CONFIG_SA1111

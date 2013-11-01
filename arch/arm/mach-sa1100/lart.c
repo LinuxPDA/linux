@@ -169,6 +169,7 @@ MACHINE_START(LART, "LART")
 	.map_io		= lart_map_io,
 	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
+	.handle_irq	= sa1100_handle_irq,
 	.init_machine	= lart_init,
 	.init_late	= sa11x0_init_late,
 	.init_time	= sa1100_timer_init,
