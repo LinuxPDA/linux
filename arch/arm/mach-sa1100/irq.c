@@ -20,6 +20,7 @@
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <asm/mach/irq.h>
+#include <asm/exception.h>
 
 #include "generic.h"
 
@@ -339,4 +340,20 @@ void __init sa1100_init_irq(void)
 	irq_set_chained_handler(IRQ_GPIO11_27, sa1100_high_gpio_handler);
 
 	sa1100_init_gpio();
+}
+
+asmlinkage void __exception_irq_entry sa1100_handle_irq(struct pt_regs *regs)
+{
+	uint32_t icip, icmr, mask;
+
+	do {
+		icip = (ICIP);
+		icmr = (ICMR);
+		mask = icip & icmr;
+
+		if (mask == 0)
+			break;
+
+		handle_IRQ(fls(mask) - 1, regs);
+	} while (1);
 }
