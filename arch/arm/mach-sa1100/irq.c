@@ -338,8 +338,6 @@ void __init sa1100_init_irq(void)
 	 */
 	irq_set_chip(IRQ_GPIO11_27, &sa1100_normal_chip);
 	irq_set_chained_handler(IRQ_GPIO11_27, sa1100_high_gpio_handler);
-
-	sa1100_init_gpio();
 }
 
 asmlinkage void __exception_irq_entry sa1100_handle_irq(struct pt_regs *regs)

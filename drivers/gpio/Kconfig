@@ -224,6 +224,12 @@ config GPIO_PXA
 	help
 	  Say yes here to support the PXA GPIO device
 
+config GPIO_SA1100
+	bool "SA1100 GPIO support"
+	depends on ARCH_SA1100
+	help
+	  Say yes here to support the StrongARM 11x0 GPIO device
+
 config GPIO_RCAR
 	tristate "Renesas R-Car GPIO"
 	depends on ARM

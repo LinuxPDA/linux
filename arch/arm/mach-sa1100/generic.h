@@ -8,7 +8,6 @@
 extern void sa1100_timer_init(void);
 extern void __init sa1100_map_io(void);
 extern void __init sa1100_init_irq(void);
-extern void __init sa1100_init_gpio(void);
 extern void sa11x0_restart(enum reboot_mode, const char *);
 extern void sa11x0_init_late(void);
 extern void sa1100_handle_irq(struct pt_regs *);

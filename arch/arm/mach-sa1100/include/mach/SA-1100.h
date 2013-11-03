@@ -1134,6 +1134,8 @@
  * Clock
  *    fcpu, Tcpu	Frequency, period of the CPU core clock (CCLK).
  */
+#define GPIO_PHYS	0x90040000
+#define GPIO_SIZE	0x20
 
 #define GPLR		__REG(0x90040000)  /* GPIO Pin Level Reg.             */
 #define GPDR		__REG(0x90040004)  /* GPIO Pin Direction Reg.         */
