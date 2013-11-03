@@ -9,7 +9,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -342,6 +341,17 @@ static struct platform_device sa11x0dma_device = {
 	.resource	= sa11x0dma_resources,
 };
 
+static struct resource sa11x0_gpio_resources[] = {
+	DEFINE_RES_MEM(GPIO_PHYS, GPIO_SIZE),
+};
+
+static struct platform_device sa11x0gpio_device = {
+	.name		= "sa1100-gpio",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(sa11x0_gpio_resources),
+	.resource	= sa11x0_gpio_resources,
+};
+
 static struct platform_device *sa11x0_devices[] __initdata = {
 	&sa11x0udc_device,
 	&sa11x0uart1_device,
@@ -350,6 +360,7 @@ static struct platform_device *sa11x0_devices[] __initdata = {
 	&sa11x0pcmcia_device,
 	&sa11x0rtc_device,
 	&sa11x0dma_device,
+	&sa11x0gpio_device,
 };
 
 static int __init sa1100_init(void)

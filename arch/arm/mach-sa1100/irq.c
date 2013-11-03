@@ -357,6 +357,4 @@ void __init sa1100_init_irq(void)
 	irq_set_chained_handler(IRQ_GPIO11_27, sa1100_high_gpio_handler);
 
 	set_handle_irq(sa1100_handle_irq);
-
-	sa1100_init_gpio();
 }
