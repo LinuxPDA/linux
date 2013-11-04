@@ -13,6 +13,8 @@ extern void __init sa1100_init_irq(void);
 extern void __init sa1100_init_gpio(struct resource *res);
 extern void sa11x0_restart(enum reboot_mode, const char *);
 extern void sa11x0_init_late(void);
+extern int sa11x0_gpio_set_wake(unsigned int gpio, unsigned int on);
+extern int sa11x0_sc_set_wake(unsigned int irq, unsigned int on);
 
 #define SET_BANK(__nr,__start,__size) \
 	mi->bank[__nr].start = (__start), \
