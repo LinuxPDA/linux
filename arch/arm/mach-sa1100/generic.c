@@ -466,3 +466,12 @@ void sa1110_mb_enable(void)
 	local_irq_restore(flags);
 }
 
+int sa11x0_gpio_set_wake(unsigned int gpio, unsigned int on)
+{
+	if (on)
+		PWER |= 1 << gpio;
+	else
+		PWER &= ~(1 << gpio);
+
+	return 0;
+}
