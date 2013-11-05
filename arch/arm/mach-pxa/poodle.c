@@ -177,7 +177,6 @@ static struct resource locomo_resources[] = {
 };
 
 static struct locomo_platform_data locomo_info = {
-	.irq_base	= IRQ_BOARD_START,
 };
 
 struct platform_device poodle_locomo_device = {
