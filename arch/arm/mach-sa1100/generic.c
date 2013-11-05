@@ -343,6 +343,18 @@ static struct platform_device sa11x0dma_device = {
 
 static struct resource sa11x0_gpio_resources[] = {
 	DEFINE_RES_MEM(GPIO_PHYS, GPIO_SIZE),
+	DEFINE_RES_IRQ(IRQ_GPIO0_),
+	DEFINE_RES_IRQ(IRQ_GPIO1_),
+	DEFINE_RES_IRQ(IRQ_GPIO2_),
+	DEFINE_RES_IRQ(IRQ_GPIO3_),
+	DEFINE_RES_IRQ(IRQ_GPIO4_),
+	DEFINE_RES_IRQ(IRQ_GPIO5_),
+	DEFINE_RES_IRQ(IRQ_GPIO6_),
+	DEFINE_RES_IRQ(IRQ_GPIO7_),
+	DEFINE_RES_IRQ(IRQ_GPIO8_),
+	DEFINE_RES_IRQ(IRQ_GPIO9_),
+	DEFINE_RES_IRQ(IRQ_GPIO10_),
+	DEFINE_RES_IRQ(IRQ_GPIO11_27),
 };
 
 static struct platform_device sa11x0gpio_device = {
