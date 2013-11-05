@@ -8,17 +8,17 @@
  * 2001/11/14	RMK	Cleaned up and standardised a lot of the IRQs.
  */
 
-#define	IRQ_GPIO0		0
-#define	IRQ_GPIO1		1
-#define	IRQ_GPIO2		2
-#define	IRQ_GPIO3		3
-#define	IRQ_GPIO4		4
-#define	IRQ_GPIO5		5
-#define	IRQ_GPIO6		6
-#define	IRQ_GPIO7		7
-#define	IRQ_GPIO8		8
-#define	IRQ_GPIO9		9
-#define	IRQ_GPIO10		10
+#define	IRQ_GPIO0_		0
+#define	IRQ_GPIO1_		1
+#define	IRQ_GPIO2_		2
+#define	IRQ_GPIO3_		3
+#define	IRQ_GPIO4_		4
+#define	IRQ_GPIO5_		5
+#define	IRQ_GPIO6_		6
+#define	IRQ_GPIO7_		7
+#define	IRQ_GPIO8_		8
+#define	IRQ_GPIO9_		9
+#define	IRQ_GPIO10_		10
 #define	IRQ_GPIO11_27		11
 #define	IRQ_LCD  		12	/* LCD controller           */
 #define	IRQ_Ser0UDC		13	/* Ser. port 0 UDC          */
@@ -41,32 +41,43 @@
 #define	IRQ_RTC1Hz		30	/* RTC 1 Hz clock           */
 #define	IRQ_RTCAlrm		31	/* RTC Alarm                */
 
-#define	IRQ_GPIO11		32
-#define	IRQ_GPIO12		33
-#define	IRQ_GPIO13		34
-#define	IRQ_GPIO14		35
-#define	IRQ_GPIO15		36
-#define	IRQ_GPIO16		37
-#define	IRQ_GPIO17		38
-#define	IRQ_GPIO18		39
-#define	IRQ_GPIO19		40
-#define	IRQ_GPIO20		41
-#define	IRQ_GPIO21		42
-#define	IRQ_GPIO22		43
-#define	IRQ_GPIO23		44
-#define	IRQ_GPIO24		45
-#define	IRQ_GPIO25		46
-#define	IRQ_GPIO26		47
-#define	IRQ_GPIO27		48
+#define	IRQ_GPIO0		32
+#define	IRQ_GPIO1		33
+#define	IRQ_GPIO2		34
+#define	IRQ_GPIO3		35
+#define	IRQ_GPIO4		36
+#define	IRQ_GPIO5		37
+#define	IRQ_GPIO6		38
+#define	IRQ_GPIO7		39
+#define	IRQ_GPIO8		40
+#define	IRQ_GPIO9		41
+#define	IRQ_GPIO10		42
+#define	IRQ_GPIO11		43
+#define	IRQ_GPIO12		44
+#define	IRQ_GPIO13		45
+#define	IRQ_GPIO14		46
+#define	IRQ_GPIO15		47
+#define	IRQ_GPIO16		48
+#define	IRQ_GPIO17		49
+#define	IRQ_GPIO18		50
+#define	IRQ_GPIO19		51
+#define	IRQ_GPIO20		52
+#define	IRQ_GPIO21		53
+#define	IRQ_GPIO22		54
+#define	IRQ_GPIO23		55
+#define	IRQ_GPIO24		56
+#define	IRQ_GPIO25		57
+#define	IRQ_GPIO26		58
+#define	IRQ_GPIO27		59
 
 /*
  * The next 16 interrupts are for board specific purposes.  Since
  * the kernel can only run on one machine at a time, we can re-use
  * these.  If you need more, increase IRQ_BOARD_END, but keep it
- * within sensible limits.  IRQs 49 to 64 are available.
+ * within sensible limits.  IRQs 60 to 75 are available.
  */
-#define IRQ_BOARD_START		49
-#define IRQ_BOARD_END		65
+#define IRQ_BOARD_START		60
+#define IRQ_BOARD_END		76
 
 /*
  * Figure out the MAX IRQ number.
