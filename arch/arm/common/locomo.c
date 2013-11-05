@@ -38,6 +38,8 @@
 #define IRQ_LOCOMO_LT		(2)
 #define IRQ_LOCOMO_SPI		(3)
 
+#define LOCOMO_NR_IRQS		(4)
+
 /* M62332 output channel selection */
 #define M62332_EVR_CH	1	/* M62332 volume channel number  */
 				/*   0 : CH.1 , 1 : CH. 2        */
@@ -194,6 +196,8 @@ static void locomo_setup_irq(struct locomo *lchip)
 {
 	int irq = lchip->irq_base;
 
+	lchip->irq_base = irq_alloc_descs(-1, irq, LOCOMO_NR_IRQS, -1);
+
 	/*
 	 * Install handler for IRQ_LOCOMO_HW.
 	 */
@@ -202,7 +206,7 @@ static void locomo_setup_irq(struct locomo *lchip)
 	irq_set_chained_handler(lchip->irq, locomo_handler);
 
 	/* Install handlers for IRQ_LOCOMO_* */
-	for ( ; irq <= lchip->irq_base + 3; irq++) {
+	for (irq = lchip->irq_base; irq < lchip->irq_base + LOCOMO_NR_IRQS; irq++) {
 		irq_set_chip_and_handler(irq, &locomo_chip, handle_level_irq);
 		irq_set_chip_data(irq, lchip);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
@@ -385,7 +389,7 @@ __locomo_probe(struct device *me, struct resource *mem, int irq)
 
 	lchip->phys = mem->start;
 	lchip->irq = irq;
-	lchip->irq_base = (pdata) ? pdata->irq_base : NO_IRQ;
+	lchip->irq_base = (pdata) ? pdata->irq_base : 0;
 
 	/*
 	 * Map the whole region.  This also maps the
@@ -452,7 +456,7 @@ __locomo_probe(struct device *me, struct resource *mem, int irq)
 	 * The interrupt controller must be initialised before any
 	 * other device to ensure that the interrupts are available.
 	 */
-	if (lchip->irq != NO_IRQ && lchip->irq_base != NO_IRQ)
+	if (lchip->irq != NO_IRQ)
 		locomo_setup_irq(lchip);
 
 	for (i = 0; i < ARRAY_SIZE(locomo_devices); i++)
@@ -478,6 +482,8 @@ static void __locomo_remove(struct locomo *lchip)
 		irq_set_chained_handler(lchip->irq, NULL);
 		irq_set_handler_data(lchip->irq, NULL);
 	}
+
+	irq_free_descs(lchip->irq_base, LOCOMO_NR_IRQS);
 
 	iounmap(lchip->base);
 	kfree(lchip);
