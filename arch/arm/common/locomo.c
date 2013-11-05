@@ -194,9 +194,9 @@ static struct irq_chip locomo_chip = {
 
 static void locomo_setup_irq(struct locomo *lchip)
 {
-	int irq = lchip->irq_base;
+	int irq;
 
-	lchip->irq_base = irq_alloc_descs(-1, irq, LOCOMO_NR_IRQS, -1);
+	lchip->irq_base = irq_alloc_descs(-1, 0, LOCOMO_NR_IRQS, -1);
 
 	/*
 	 * Install handler for IRQ_LOCOMO_HW.
@@ -373,7 +373,6 @@ static int locomo_resume(struct platform_device *dev)
 static int
 __locomo_probe(struct device *me, struct resource *mem, int irq)
 {
-	struct locomo_platform_data *pdata = me->platform_data;
 	struct locomo *lchip;
 	unsigned long r;
 	int i, ret = -ENODEV;
@@ -389,7 +388,6 @@ __locomo_probe(struct device *me, struct resource *mem, int irq)
 
 	lchip->phys = mem->start;
 	lchip->irq = irq;
-	lchip->irq_base = (pdata) ? pdata->irq_base : 0;
 
 	/*
 	 * Map the whole region.  This also maps the
