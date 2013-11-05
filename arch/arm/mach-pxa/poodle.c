@@ -180,14 +180,18 @@ static struct locomo_platform_data locomo_info = {
 	.gpio_data = {
 		.gpio_base = POODLE_LOCOMO_GPIO_BASE,
 	},
-	.bl_data = {
+	.lcd_data = {
 		.comadj	          = 118,
 		.gpio_lcd_vsha_on = POODLE_GPIO_LCD_VSHA_ON,
 		.gpio_lcd_vshd_on = POODLE_GPIO_LCD_VSHD_ON,
 		.gpio_lcd_vee_on  = POODLE_GPIO_LCD_VEE_ON,
 		.gpio_lcd_mod     = POODLE_GPIO_LCD_MOD,
+	},
+	.bl_data = {
 		.gpio_fl_vr       = POODLE_GPIO_FL_VR,
 	},
+	.gpio_amp1_on	= -1,
+	.gpio_amp2_on	= -1,
 };
 
 struct platform_device poodle_locomo_device = {
@@ -452,7 +456,7 @@ static void __init poodle_init(void)
 	platform_scoop_config = &poodle_pcmcia_config;
 
 	if (sharpsl_param.comadj != -1)
-		locomo_info.bl_data.comadj = sharpsl_param.comadj;
+		locomo_info.lcd_data.comadj = sharpsl_param.comadj;
 
 	ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	if (ret)

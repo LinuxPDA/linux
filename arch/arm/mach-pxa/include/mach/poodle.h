@@ -89,7 +89,7 @@
 #define POODLE_GPIO_MUTE_L	(POODLE_LOCOMO_GPIO_BASE + 10)
 #define POODLE_GPIO_MUTE_R	(POODLE_LOCOMO_GPIO_BASE + 11)
 
-#define POODLE_NR_IRQS		(IRQ_BOARD_START + 4)	/* 4 for LoCoMo */
+#define POODLE_NR_IRQS		IRQ_BOARD_START
 
 extern struct platform_device poodle_locomo_device;
 
