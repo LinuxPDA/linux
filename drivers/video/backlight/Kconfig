@@ -220,12 +220,12 @@ config BACKLIGHT_LM3533
 	  levels.
 
 config BACKLIGHT_LOCOMO
-	tristate "Sharp LOCOMO LCD/Backlight Driver"
-	depends on SHARP_LOCOMO
+	tristate "Sharp LOCOMO Backlight Driver"
+	depends on MFD_LOCOMO
 	default y
 	help
 	  If you have a Sharp Zaurus SL-5500 (Collie) or SL-5600 (Poodle) say y to
-	  enable the LCD/backlight driver.
+	  enable the backlight driver.
 
 config BACKLIGHT_OMAP1
 	tristate "OMAP1 PWL-based LCD Backlight"
