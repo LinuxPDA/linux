@@ -325,7 +325,6 @@ config KEYBOARD_LM8333
 
 config KEYBOARD_LOCOMO
 	tristate "LoCoMo Keyboard Support"
-	depends on SHARP_LOCOMO
 	help
 	  Say Y here if you are running Linux on a Sharp Zaurus Collie or Poodle based PDA
 
