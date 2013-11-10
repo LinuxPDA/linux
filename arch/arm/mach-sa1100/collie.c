@@ -24,6 +24,7 @@
 #include <linux/platform_data/sa11x0-serial.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/ucb1x00.h>
+#include <linux/mfd/locomo.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/timer.h>
@@ -45,7 +46,6 @@
 
 #include <asm/hardware/scoop.h>
 #include <asm/mach/sharpsl_param.h>
-#include <asm/hardware/locomo.h>
 #include <linux/platform_data/mfd-mcp-sa11x0.h>
 #include <mach/irqs.h>
 
@@ -149,36 +149,54 @@ static struct platform_device collie_power_device = {
 	.dev.platform_data	= &collie_power_data,
 };
 
-#ifdef CONFIG_SHARP_LOCOMO
 /*
  * low-level UART features.
  */
-struct platform_device collie_locomo_device;
+static struct gpio collie_uart_gpio[] = {
+	{ COLLIE_GPIO_CTS, GPIOF_IN, "CTS" },
+	{ COLLIE_GPIO_RTS, GPIOF_OUT_INIT_LOW, "RTS" },
+	{ COLLIE_GPIO_DTR, GPIOF_OUT_INIT_LOW, "DTR" },
+	{ COLLIE_GPIO_DSR, GPIOF_IN, "DSR" },
+};
+
+static bool collie_uart_gpio_ok;
 
 static void collie_uart_set_mctrl(struct uart_port *port, u_int mctrl)
 {
-	if (mctrl & TIOCM_RTS)
-		locomo_gpio_write(&collie_locomo_device.dev, LOCOMO_GPIO_RTS, 0);
-	else
-		locomo_gpio_write(&collie_locomo_device.dev, LOCOMO_GPIO_RTS, 1);
+	if (!collie_uart_gpio_ok) {
+		int rc = gpio_request_array(collie_uart_gpio,
+				ARRAY_SIZE(collie_uart_gpio));
+		if (rc)
+			printk("collie_uart_set_mctrl: gpio request %d\n", rc);
+		else
+			collie_uart_gpio_ok = true;
+	}
 
-	if (mctrl & TIOCM_DTR)
-		locomo_gpio_write(&collie_locomo_device.dev, LOCOMO_GPIO_DTR, 0);
-	else
-		locomo_gpio_write(&collie_locomo_device.dev, LOCOMO_GPIO_DTR, 1);
+	if (collie_uart_gpio_ok) {
+		gpio_set_value(COLLIE_GPIO_RTS, !(mctrl & TIOCM_RTS));
+		gpio_set_value(COLLIE_GPIO_DTR, !(mctrl & TIOCM_DTR));
+	}
 }
 
 static u_int collie_uart_get_mctrl(struct uart_port *port)
 {
 	int ret = TIOCM_CD;
-	unsigned int r;
 
-	r = locomo_gpio_read_output(&collie_locomo_device.dev, LOCOMO_GPIO_CTS & LOCOMO_GPIO_DSR);
-	if (r == -ENODEV)
+	if (!collie_uart_gpio_ok) {
+		int rc = gpio_request_array(collie_uart_gpio,
+				ARRAY_SIZE(collie_uart_gpio));
+		if (rc)
+			printk("collie_uart_get_mctrl: gpio request %d\n", rc);
+		else
+			collie_uart_gpio_ok = true;
+	}
+
+	if (!collie_uart_gpio_ok)
 		return ret;
-	if (r & LOCOMO_GPIO_CTS)
+
+	if (gpio_get_value(COLLIE_GPIO_CTS))
 		ret |= TIOCM_CTS;
-	if (r & LOCOMO_GPIO_DSR)
+	if (gpio_get_value(COLLIE_GPIO_DSR))
 		ret |= TIOCM_DSR;
 
 	return ret;
@@ -189,33 +207,6 @@ static struct sa1100_port_fns collie_port_fns __initdata = {
 	.get_mctrl	= collie_uart_get_mctrl,
 };
 
-static int collie_uart_probe(struct locomo_dev *dev)
-{
-	return 0;
-}
-
-static int collie_uart_remove(struct locomo_dev *dev)
-{
-	return 0;
-}
-
-static struct locomo_driver collie_uart_driver = {
-	.drv = {
-		.name = "collie_uart",
-	},
-	.devid	= LOCOMO_DEVID_UART,
-	.probe	= collie_uart_probe,
-	.remove	= collie_uart_remove,
-};
-
-static int __init collie_uart_init(void)
-{
-	return locomo_driver_register(&collie_uart_driver);
-}
-device_initcall(collie_uart_init);
-
-#endif
-
 
 static struct resource locomo_resources[] = {
 	[0] = DEFINE_RES_MEM(0x40000000, SZ_8K),
@@ -223,13 +214,14 @@ static struct resource locomo_resources[] = {
 };
 
 static struct locomo_platform_data locomo_info = {
+	.gpio_base = COLLIE_LOCOMO_GPIO_BASE,
 };
 
-struct platform_device collie_locomo_device = {
+static struct platform_device collie_locomo_device = {
 	.name		= "locomo",
 	.id		= 0,
 	.dev		= {
-		.platform_data	= &locomo_info,
+		.platform_data  = &locomo_info,
 	},
 	.num_resources	= ARRAY_SIZE(locomo_resources),
 	.resource	= locomo_resources,
@@ -379,9 +371,7 @@ static void __init collie_map_io(void)
 	sa1100_map_io();
 	iotable_init(collie_io_desc, ARRAY_SIZE(collie_io_desc));
 
-#ifdef CONFIG_SHARP_LOCOMO
 	sa1100_register_uart_fns(&collie_port_fns);
-#endif
 	sa1100_register_uart(0, 3);
 	sa1100_register_uart(1, 1);
 }
