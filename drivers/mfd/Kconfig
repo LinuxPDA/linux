@@ -1151,6 +1151,14 @@ config MFD_WM8994
 	  core support for the WM8994, in order to use the actual
 	  functionaltiy of the device other drivers must be enabled.
 
+config MFD_LOCOMO
+	bool "Sharp LoCoMo support"
+	depends on ARM
+	select MFD_CORE
+	help
+	  Support for Sharp LoCoMo Grid Array found in Sharp SL-5x00
+          PDA family.
+
 endmenu
 endif
 
