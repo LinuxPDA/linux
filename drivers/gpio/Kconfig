@@ -366,6 +366,12 @@ config GPIO_GRGPIO
 	  Select this to support Aeroflex Gaisler GRGPIO cores from the GRLIB
 	  VHDL IP core library.
 
+config GPIO_LOCOMO
+	bool "Sharp LoCoMo GPIO support"
+	depends on MFD_LOCOMO
+	help
+	  Select this to support GPIO pins on Sharp LoCoMo Grid Array.
+
 comment "I2C GPIO expanders:"
 
 config GPIO_ARIZONA
