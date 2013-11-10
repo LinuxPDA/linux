@@ -221,7 +221,7 @@ config BACKLIGHT_LM3533
 
 config BACKLIGHT_LOCOMO
 	tristate "Sharp LOCOMO LCD/Backlight Driver"
-	depends on SHARP_LOCOMO
+	depends on MFD_LOCOMO
 	default y
 	help
 	  If you have a Sharp Zaurus SL-5500 (Collie) or SL-5600 (Poodle) say y to
