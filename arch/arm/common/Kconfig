@@ -9,9 +9,6 @@ config DMABOUNCE
 	bool
 	select ZONE_DMA
 
-config SHARP_LOCOMO
-	bool
-
 config SHARP_PARAM
 	bool
 
