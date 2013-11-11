@@ -18,13 +18,18 @@
 #include <linux/gpio.h>
 #include <linux/io.h>
 #include <linux/spinlock.h>
+#include <linux/irq.h>
 #include <linux/mfd/locomo.h>
+
+#define LOCOMO_GPIO_NR_IRQS 16
 
 struct locomo_gpio {
 	void __iomem *regs;
+	int irq;
 
 	spinlock_t lock;
 	struct gpio_chip gpio;
+	int irq_base;
 
 	u16 rising_edge;
 	u16 falling_edge;
@@ -114,6 +119,145 @@ static int locomo_gpio_direction_output(struct gpio_chip *chip,
 	return 0;
 }
 
+static int locomo_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
+{
+	struct locomo_gpio *lg = container_of(chip, struct locomo_gpio, gpio);
+
+	return lg->irq_base + offset;
+}
+
+static void
+locomo_gpio_handler(unsigned int irq, struct irq_desc *desc)
+{
+	u16 req;
+	struct locomo_gpio *lg = irq_get_handler_data(irq);
+	int i = lg->irq_base;
+
+	req = readw(lg->regs + LOCOMO_GIR) &
+	      readw(lg->regs + LOCOMO_GPD);
+
+	while (req) {
+		if (req & 1)
+			generic_handle_irq(i);
+		req >>= 1;
+		i ++;
+	}
+}
+
+static void locomo_gpio_ack_irq(struct irq_data *d)
+{
+	struct locomo_gpio *lg = irq_data_get_irq_chip_data(d);
+	unsigned long flags;
+	u16 r;
+
+	spin_lock_irqsave(&lg->lock, flags);
+
+	r = readw(lg->regs + LOCOMO_GWE);
+	r |= (0x0001 << (d->irq - lg->irq_base));
+	writew(r, lg->regs + LOCOMO_GWE);
+
+	r = readw(lg->regs + LOCOMO_GIS);
+	r &= ~(0x0001 << (d->irq - lg->irq_base));
+	writew(r, lg->regs + LOCOMO_GIS);
+
+	r = readw(lg->regs + LOCOMO_GWE);
+	r &= ~(0x0001 << (d->irq - lg->irq_base));
+	writew(r, lg->regs + LOCOMO_GWE);
+
+	spin_unlock_irqrestore(&lg->lock, flags);
+}
+
+static void locomo_gpio_mask_irq(struct irq_data *d)
+{
+	struct locomo_gpio *lg = irq_data_get_irq_chip_data(d);
+	unsigned long flags;
+	u16 r;
+
+	spin_lock_irqsave(&lg->lock, flags);
+
+	r = readw(lg->regs + LOCOMO_GIE);
+	r &= ~(0x0001 << (d->irq - lg->irq_base));
+	writew(r, lg->regs + LOCOMO_GIE);
+
+	spin_unlock_irqrestore(&lg->lock, flags);
+}
+
+static void locomo_gpio_unmask_irq(struct irq_data *d)
+{
+	struct locomo_gpio *lg = irq_data_get_irq_chip_data(d);
+	unsigned long flags;
+	u16 r;
+
+	spin_lock_irqsave(&lg->lock, flags);
+
+	r = readw(lg->regs + LOCOMO_GIE);
+	r |= (0x0001 << (d->irq - lg->irq_base));
+	writew(r, lg->regs + LOCOMO_GIE);
+
+	spin_unlock_irqrestore(&lg->lock, flags);
+}
+
+static int locomo_gpio_type(struct irq_data *d, unsigned int type)
+{
+	unsigned int mask;
+	struct locomo_gpio *lg = irq_data_get_irq_chip_data(d);
+	unsigned long flags;
+
+	mask = 1 << (d->irq - lg->irq_base);
+
+	if (type == IRQ_TYPE_PROBE) {
+		if ((lg->rising_edge | lg->falling_edge) & mask)
+			return 0;
+		type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
+	}
+
+	if (type & IRQ_TYPE_EDGE_RISING)
+		lg->rising_edge |= mask;
+	else
+		lg->rising_edge &= ~mask;
+	if (type & IRQ_TYPE_EDGE_FALLING)
+		lg->falling_edge |= mask;
+	else
+		lg->falling_edge &= ~mask;
+
+	spin_lock_irqsave(&lg->lock, flags);
+
+	writew(lg->rising_edge, lg->regs + LOCOMO_GRIE);
+	writew(lg->falling_edge, lg->regs + LOCOMO_GFIE);
+
+	spin_unlock_irqrestore(&lg->lock, flags);
+
+	return 0;
+}
+
+static struct irq_chip locomo_gpio_chip = {
+	.name		= "LOCOMO-gpio",
+	.irq_ack	= locomo_gpio_ack_irq,
+	.irq_mask	= locomo_gpio_mask_irq,
+	.irq_unmask	= locomo_gpio_unmask_irq,
+	.irq_set_type	= locomo_gpio_type,
+};
+
+static void locomo_gpio_setup_irq(struct locomo_gpio *lg)
+{
+	int irq;
+
+	lg->irq_base = irq_alloc_descs(-1, 0, LOCOMO_GPIO_NR_IRQS, -1);
+
+	/* Install handlers for IRQ_LOCOMO_* */
+	for (irq = lg->irq_base; irq < lg->irq_base + LOCOMO_GPIO_NR_IRQS; irq++) {
+		irq_set_chip_and_handler(irq, &locomo_gpio_chip, handle_edge_irq);
+		irq_set_chip_data(irq, lg);
+		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+	}
+
+	/*
+	 * Install handler for IRQ_LOCOMO_HW.
+	 */
+	irq_set_handler_data(lg->irq, lg);
+	irq_set_chained_handler(lg->irq, locomo_gpio_handler);
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int locomo_gpio_suspend(struct device *dev)
 {
@@ -168,6 +312,10 @@ static int locomo_gpio_probe(struct platform_device *pdev)
 	if (!lg)
 		return -ENOMEM;
 
+	lg->irq = platform_get_irq(pdev, 0);
+	if (lg->irq < 0)
+		return -ENXIO;
+
 	lg->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(lg->regs))
 		return PTR_ERR(lg->regs);
@@ -188,10 +336,13 @@ static int locomo_gpio_probe(struct platform_device *pdev)
 	lg->gpio.get = locomo_gpio_get;
 	lg->gpio.direction_input = locomo_gpio_direction_input;
 	lg->gpio.direction_output = locomo_gpio_direction_output;
+	lg->gpio.to_irq = locomo_gpio_to_irq;
 
 	ret = gpiochip_add(&lg->gpio);
 	if (ret)
 		return ret;
+
+	locomo_gpio_setup_irq(lg);
 
 	return 0;
 }
@@ -206,6 +357,10 @@ static int locomo_gpio_remove(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Can't remove gpio chip: %d\n", ret);
 		return ret;
 	}
+
+	irq_set_chained_handler(lg->irq, NULL);
+	irq_set_handler_data(lg->irq, NULL);
+	irq_free_descs(lg->irq_base, LOCOMO_GPIO_NR_IRQS);
 
 	return 0;
 }
