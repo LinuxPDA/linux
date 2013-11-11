@@ -29,6 +29,7 @@
 #include <linux/spi/ads7846.h>
 #include <linux/spi/pxa2xx_spi.h>
 #include <linux/mtd/sharpsl.h>
+#include <linux/mfd/locomo.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -47,7 +48,6 @@
 #include <linux/platform_data/video-pxafb.h>
 
 #include <asm/hardware/scoop.h>
-#include <asm/hardware/locomo.h>
 #include <asm/mach/sharpsl_param.h>
 
 #include "generic.h"
@@ -177,6 +177,7 @@ static struct resource locomo_resources[] = {
 };
 
 static struct locomo_platform_data locomo_info = {
+	.gpio_base = POODLE_LOCOMO_GPIO_BASE,
 };
 
 struct platform_device poodle_locomo_device = {
@@ -188,8 +189,6 @@ struct platform_device poodle_locomo_device = {
 		.platform_data	= &locomo_info,
 	},
 };
-
-EXPORT_SYMBOL(poodle_locomo_device);
 
 #if defined(CONFIG_SPI_PXA2XX) || defined(CONFIG_SPI_PXA2XX_MODULE)
 static struct pxa2xx_spi_master poodle_spi_info = {
