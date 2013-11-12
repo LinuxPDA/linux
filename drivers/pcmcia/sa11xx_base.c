@@ -38,6 +38,7 @@
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/clk.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
@@ -138,14 +139,15 @@ sa1100_pcmcia_frequency_change(struct soc_pcmcia_socket *skt,
 static int
 sa1100_pcmcia_set_timing(struct soc_pcmcia_socket *skt)
 {
-	return sa1100_pcmcia_set_mecr(skt, cpufreq_get(0));
+	unsigned long clk = clk_get_rate(skt->clk);
+	return sa1100_pcmcia_set_mecr(skt, clk / 1000);
 }
 
 static int
 sa1100_pcmcia_show_timing(struct soc_pcmcia_socket *skt, char *buf)
 {
 	struct soc_pcmcia_timing timing;
-	unsigned int clock = cpufreq_get(0);
+	unsigned int clock = clk_get_rate(skt->clk);
 	unsigned long mecr = MECR;
 	char *p = buf;
 
@@ -221,6 +223,11 @@ int sa11xx_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops,
 	struct skt_dev_info *sinfo;
 	struct soc_pcmcia_socket *skt;
 	int i, ret = 0;
+	struct clk *clk;
+
+	clk = clk_get(dev, NULL);
+	if (IS_ERR(clk))
+		return -ENODEV;
 
 	sa11xx_drv_pcmcia_ops(ops);
 
@@ -229,12 +236,14 @@ int sa11xx_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops,
 		return -ENOMEM;
 
 	sinfo->nskt = nr;
+	sinfo->clk = clk;
 
 	/* Initialize processor specific parameters */
 	for (i = 0; i < nr; i++) {
 		skt = &sinfo->skt[i];
 
 		skt->nr = first + i;
+		skt->clk = clk;
 		soc_pcmcia_init_one(skt, ops, dev);
 
 		ret = sa11xx_drv_pcmcia_add_one(skt);
@@ -245,6 +254,7 @@ int sa11xx_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops,
 	if (ret) {
 		while (--i >= 0)
 			soc_pcmcia_remove_one(&sinfo->skt[i]);
+		clk_put(clk);
 		kfree(sinfo);
 	} else {
 		dev_set_drvdata(dev, sinfo);
