@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/platform_data/sa11x0-serial.h>
 #include <linux/platform_device.h>
+#include <linux/pinctrl/machine.h>
 #include <linux/mfd/ucb1x00.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -319,6 +320,13 @@ static struct sa1100fb_mach_info collie_lcd_info = {
 #endif
 };
 
+static const struct pinctrl_map mapping[] __initconst = {
+	PIN_MAP_MUX_GROUP_DEFAULT("sa11x0-uart.1", "sa11x0-ppc", NULL, "sp3"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sa11x0-ir", "sa11x0-ppc", NULL, "sp2"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sa11x0-uart.3", "sa11x0-ppc", NULL, "sp3"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sa11x0-mcp", "sa11x0-ppc", NULL, "sp4"),
+};
+
 static void __init collie_init(void)
 {
 	int ret = 0;
@@ -353,8 +361,12 @@ static void __init collie_init(void)
 
 	sa11x0_ppc_configure_mcp();
 
-
 	platform_scoop_config = &collie_pcmcia_config;
+
+	ret = pinctrl_register_mappings(mapping, ARRAY_SIZE(mapping));
+	if (ret) {
+		printk(KERN_WARNING "collie: Unable to register pinctrl mappings (%d)\n", ret);
+	}
 
 	ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	if (ret) {
