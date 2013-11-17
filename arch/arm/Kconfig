@@ -694,6 +694,7 @@ config ARCH_SA1100
 	select ISA
 	select NEED_MACH_GPIO_H
 	select NEED_MACH_MEMORY_H
+	select PINCTRL
 	select SPARSE_IRQ
 	help
 	  Support for StrongARM 11x0 based boards.
