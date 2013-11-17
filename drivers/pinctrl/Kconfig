@@ -272,6 +272,15 @@ config PINCTRL_PALMAS
 	  open drain configuration for the Palmas series devices like
 	  TPS65913, TPS80036 etc.
 
+config PINCTRL_SA1100
+	bool "Pinctrl drivers for StrongARM 1100 SoC"
+	depends on ARCH_SA1100
+	select PINMUX
+	help
+	  StrongARM chips support multiplexing of pins. This driver supports
+	  pinmux configuration of PPC (peripheral pins controller) on SA1100
+	  SoC family.
+
 config PINCTRL_S3C24XX
 	bool "Samsung S3C24XX SoC pinctrl driver"
 	depends on ARCH_S3C24XX
