@@ -1313,6 +1313,9 @@
  *              	(read).
  */
 
+#define PPC_PHYS	0x90060000
+#define PPC_SIZE	0x14
+
 #define PPDR		__REG(0x90060000)  /* PPC Pin Direction Reg.          */
 #define PPSR		__REG(0x90060004)  /* PPC Pin State Reg.              */
 #define PPAR		__REG(0x90060008)  /* PPC Pin Assignment Reg.         */

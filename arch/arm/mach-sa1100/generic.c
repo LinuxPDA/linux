@@ -342,6 +342,17 @@ static struct platform_device sa11x0dma_device = {
 	.resource	= sa11x0dma_resources,
 };
 
+static struct resource sa11x0ppc_resources[] = {
+	DEFINE_RES_MEM(PPC_PHYS, PPC_SIZE),
+};
+
+static struct platform_device sa11x0ppc_device = {
+	.name		= "sa11x0-ppc",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(sa11x0ppc_resources),
+	.resource	= sa11x0ppc_resources,
+};
+
 static struct platform_device *sa11x0_devices[] __initdata = {
 	&sa11x0udc_device,
 	&sa11x0uart1_device,
@@ -350,6 +361,7 @@ static struct platform_device *sa11x0_devices[] __initdata = {
 	&sa11x0pcmcia_device,
 	&sa11x0rtc_device,
 	&sa11x0dma_device,
+	&sa11x0ppc_device,
 };
 
 static int __init sa1100_init(void)
