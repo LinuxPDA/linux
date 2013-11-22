@@ -453,3 +453,11 @@ void sa1110_mb_enable(void)
 	local_irq_restore(flags);
 }
 
+extern void __init
+xscale_timer_init(void __iomem *base,
+		int irq,
+		unsigned long clock_tick_rate);
+void __init sa1100_timer_init(void)
+{
+	xscale_timer_init(OSMR0, IRQ_OST0, 3686400);
+}
