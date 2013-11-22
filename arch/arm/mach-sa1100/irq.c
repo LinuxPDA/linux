@@ -309,6 +309,9 @@ sa1100_handle_irq(struct pt_regs *regs)
 	} while (1);
 }
 
+static struct resource gpio_resource =
+	DEFINE_RES_MEM_NAMED(0x90040000, 0x20, "gpios");
+
 void __init sa1100_init_irq(void)
 {
 	unsigned int irq;
@@ -358,5 +361,5 @@ void __init sa1100_init_irq(void)
 
 	set_handle_irq(sa1100_handle_irq);
 
-	sa1100_init_gpio();
+	sa1100_init_gpio(&gpio_resource);
 }
