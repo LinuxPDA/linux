@@ -98,6 +98,12 @@ config CLKSRC_EXYNOS_MCT
 	help
 	  Support for Multi Core Timer controller on Exynos SoCs.
 
+config CLKSRC_XSCALE
+	def_bool y if ARCH_PXA || ARCH_SA1100
+	help
+	  Support for OS Timers as found on StrongARM SA-11x0 o
+	  Intel/Marvell PXA SoCs.
+
 config CLKSRC_SAMSUNG_PWM
 	bool
 	help
