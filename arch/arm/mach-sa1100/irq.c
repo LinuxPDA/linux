@@ -33,6 +33,7 @@
 static int GPIO_IRQ_rising_edge;
 static int GPIO_IRQ_falling_edge;
 static int GPIO_IRQ_mask = (1 << 11) - 1;
+static int GPIO_IRQ_wake_mask;
 
 /*
  * To get the GPIO number from an IRQ number
@@ -91,10 +92,11 @@ static void sa1100_low_gpio_unmask(struct irq_data *d)
 static int sa1100_low_gpio_wake(struct irq_data *d, unsigned int on)
 {
 	if (on)
-		PWER |= 1 << d->irq;
+		GPIO_IRQ_wake_mask |= BIT(d->irq);
 	else
-		PWER &= ~(1 << d->irq);
-	return 0;
+		GPIO_IRQ_wake_mask &= ~BIT(d->irq);
+
+	return sa11x0_gpio_set_wake(d->irq, on);
 }
 
 static struct irq_chip sa1100_low_gpio_chip = {
@@ -172,10 +174,11 @@ static void sa1100_high_gpio_unmask(struct irq_data *d)
 static int sa1100_high_gpio_wake(struct irq_data *d, unsigned int on)
 {
 	if (on)
-		PWER |= GPIO11_27_MASK(d->irq);
+		GPIO_IRQ_wake_mask |= GPIO11_27_MASK(d->irq);
 	else
-		PWER &= ~GPIO11_27_MASK(d->irq);
-	return 0;
+		GPIO_IRQ_wake_mask &= ~GPIO11_27_MASK(d->irq);
+
+	return sa11x0_gpio_set_wake(GPIO_11_27_IRQ(d->irq), on);
 }
 
 static struct irq_chip sa1100_high_gpio_chip = {
@@ -206,14 +209,7 @@ static void sa1100_unmask_irq(struct irq_data *d)
  */
 static int sa1100_set_wake(struct irq_data *d, unsigned int on)
 {
-	if (d->irq == IRQ_RTCAlrm) {
-		if (on)
-			PWER |= PWER_RTC;
-		else
-			PWER &= ~PWER_RTC;
-		return 0;
-	}
-	return -EINVAL;
+	return sa11x0_sc_set_wake(d->irq, on);
 }
 
 static struct irq_chip sa1100_normal_chip = {
@@ -253,8 +249,8 @@ static int sa1100irq_suspend(void)
 	/*
 	 * Set the appropriate edges for wakeup.
 	 */
-	GRER = PWER & GPIO_IRQ_rising_edge;
-	GFER = PWER & GPIO_IRQ_falling_edge;
+	GRER = GPIO_IRQ_wake_mask & GPIO_IRQ_rising_edge;
+	GFER = GPIO_IRQ_wake_mask & GPIO_IRQ_falling_edge;
 	
 	/*
 	 * Clear any pending GPIO interrupts.
@@ -361,5 +357,6 @@ void __init sa1100_init_irq(void)
 
 	set_handle_irq(sa1100_handle_irq);
 
+	request_resource(&iomem_resource, &gpio_resource);
 	sa1100_init_gpio(&gpio_resource);
 }
