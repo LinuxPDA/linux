@@ -40,209 +40,6 @@ static void __iomem *gpio_regbase;
 #define GEDR_OFFSET	0x18  /* GPIO Edge Detect status Reg.    */
 
 /*
- * SA1100 GPIO edge detection for IRQs:
- * IRQs are generated on Falling-Edge, Rising-Edge, or both.
- * Use this instead of directly setting GRER/GFER.
- */
-static int GPIO_IRQ_rising_edge;
-static int GPIO_IRQ_falling_edge;
-static int GPIO_IRQ_mask = (1 << 11) - 1;
-static int GPIO_IRQ_wake_mask;
-
-static int sa1100_gpio_type(struct irq_data *d, unsigned int type)
-{
-	unsigned int mask;
-
-	mask = BIT(d->hwirq);
-
-	if (type == IRQ_TYPE_PROBE) {
-		if ((GPIO_IRQ_rising_edge | GPIO_IRQ_falling_edge) & mask)
-			return 0;
-		type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
-	}
-
-	if (type & IRQ_TYPE_EDGE_RISING) {
-		GPIO_IRQ_rising_edge |= mask;
-	} else
-		GPIO_IRQ_rising_edge &= ~mask;
-	if (type & IRQ_TYPE_EDGE_FALLING) {
-		GPIO_IRQ_falling_edge |= mask;
-	} else
-		GPIO_IRQ_falling_edge &= ~mask;
-
-	writel_relaxed(GPIO_IRQ_rising_edge & GPIO_IRQ_mask,
-			gpio_regbase + GRER_OFFSET);
-	writel_relaxed(GPIO_IRQ_falling_edge & GPIO_IRQ_mask,
-			gpio_regbase + GFER_OFFSET);
-
-	return 0;
-}
-
-/*
- * GPIO IRQs must be acknowledged.  This is for IRQs from 0 to 10.
- */
-static void sa1100_low_gpio_ack(struct irq_data *d)
-{
-	writel_relaxed(BIT(d->hwirq), gpio_regbase + GEDR_OFFSET);
-}
-
-static void sa1100_low_gpio_mask(struct irq_data *d)
-{
-	unsigned int r = readl_relaxed(irq_regbase + ICMR_OFFSET);
-	r &= ~BIT(d->hwirq);
-	writel_relaxed(r, irq_regbase + ICMR_OFFSET);
-}
-
-static void sa1100_low_gpio_unmask(struct irq_data *d)
-{
-	unsigned int r = readl_relaxed(irq_regbase + ICMR_OFFSET);
-	r |= BIT(d->hwirq);
-	writel_relaxed(r, irq_regbase + ICMR_OFFSET);
-}
-
-static int sa1100_low_gpio_wake(struct irq_data *d, unsigned int on)
-{
-	if (on)
-		GPIO_IRQ_wake_mask |= BIT(d->hwirq);
-	else
-		GPIO_IRQ_wake_mask &= ~BIT(d->hwirq);
-
-	return sa11x0_gpio_set_wake(d->hwirq, on);
-}
-
-static struct irq_chip sa1100_low_gpio_chip = {
-	.name		= "GPIO-l",
-	.irq_ack	= sa1100_low_gpio_ack,
-	.irq_mask	= sa1100_low_gpio_mask,
-	.irq_unmask	= sa1100_low_gpio_unmask,
-	.irq_set_type	= sa1100_gpio_type,
-	.irq_set_wake	= sa1100_low_gpio_wake,
-};
-
-static int sa1100_low_gpio_irqdomain_map(struct irq_domain *d,
-		unsigned int irq, irq_hw_number_t hwirq)
-{
-	irq_set_chip_and_handler(irq, &sa1100_low_gpio_chip,
-				 handle_edge_irq);
-	set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
-
-	return 0;
-}
-
-static struct irq_domain_ops sa1100_low_gpio_irqdomain_ops = {
-	.map = sa1100_low_gpio_irqdomain_map,
-	.xlate = irq_domain_xlate_onetwocell,
-};
-
-static struct irq_domain *sa1100_low_gpio_irqdomain;
-
-/*
- * IRQ11 (GPIO11 through 27) handler.  We enter here with the
- * irq_controller_lock held, and IRQs disabled.  Decode the IRQ
- * and call the handler.
- */
-static void
-sa1100_high_gpio_handler(unsigned int irq, struct irq_desc *desc)
-{
-	unsigned int mask;
-
-	mask = readl_relaxed(gpio_regbase + GEDR_OFFSET) & 0xfffff800;
-	do {
-		/*
-		 * clear down all currently active IRQ sources.
-		 * We will be processing them all.
-		 */
-		writel_relaxed(mask, gpio_regbase + GEDR_OFFSET);
-
-		irq = IRQ_GPIO11;
-		mask >>= 11;
-		do {
-			if (mask & 1)
-				generic_handle_irq(irq);
-			mask >>= 1;
-			irq++;
-		} while (mask);
-
-		mask = readl_relaxed(gpio_regbase + GEDR_OFFSET) & 0xfffff800;
-	} while (mask);
-}
-
-/*
- * Like GPIO0 to 10, GPIO11-27 IRQs need to be handled specially.
- * In addition, the IRQs are all collected up into one bit in the
- * interrupt controller registers.
- */
-static void sa1100_high_gpio_ack(struct irq_data *d)
-{
-	unsigned int mask = BIT(d->hwirq);
-
-	writel_relaxed(mask, gpio_regbase + GEDR_OFFSET);
-}
-
-static void sa1100_high_gpio_mask(struct irq_data *d)
-{
-	unsigned int mask = BIT(d->hwirq);
-	unsigned int r;
-
-	GPIO_IRQ_mask &= ~mask;
-
-	r = readl_relaxed(gpio_regbase + GRER_OFFSET);
-	r &= ~mask;
-	writel_relaxed(r, gpio_regbase + GRER_OFFSET);
-	r = readl_relaxed(gpio_regbase + GFER_OFFSET);
-	r &= ~mask;
-	writel_relaxed(r, gpio_regbase + GFER_OFFSET);
-}
-
-static void sa1100_high_gpio_unmask(struct irq_data *d)
-{
-	unsigned int mask = BIT(d->hwirq);
-
-	GPIO_IRQ_mask |= mask;
-
-	writel_relaxed(GPIO_IRQ_rising_edge & GPIO_IRQ_mask,
-			gpio_regbase + GRER_OFFSET);
-	writel_relaxed(GPIO_IRQ_falling_edge & GPIO_IRQ_mask,
-			gpio_regbase + GFER_OFFSET);
-}
-
-static int sa1100_high_gpio_wake(struct irq_data *d, unsigned int on)
-{
-	if (on)
-		GPIO_IRQ_wake_mask |= BIT(d->hwirq);
-	else
-		GPIO_IRQ_wake_mask &= ~BIT(d->hwirq);
-
-	return sa11x0_gpio_set_wake(d->hwirq, on);
-}
-
-static struct irq_chip sa1100_high_gpio_chip = {
-	.name		= "GPIO-h",
-	.irq_ack	= sa1100_high_gpio_ack,
-	.irq_mask	= sa1100_high_gpio_mask,
-	.irq_unmask	= sa1100_high_gpio_unmask,
-	.irq_set_type	= sa1100_gpio_type,
-	.irq_set_wake	= sa1100_high_gpio_wake,
-};
-
-static int sa1100_high_gpio_irqdomain_map(struct irq_domain *d,
-		unsigned int irq, irq_hw_number_t hwirq)
-{
-	irq_set_chip_and_handler(irq, &sa1100_high_gpio_chip,
-				 handle_edge_irq);
-	set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
-
-	return 0;
-}
-
-static struct irq_domain_ops sa1100_high_gpio_irqdomain_ops = {
-	.map = sa1100_high_gpio_irqdomain_map,
-	.xlate = irq_domain_xlate_onetwocell,
-};
-
-static struct irq_domain *sa1100_high_gpio_irqdomain;
-
-/*
  * We don't need to ACK IRQs on the SA1100 unless they're GPIOs
  * this is for internal IRQs i.e. from 11 to 31.
  */
@@ -292,6 +89,178 @@ static struct irq_domain_ops sa1100_normal_irqdomain_ops = {
 };
 
 static struct irq_domain *sa1100_normal_irqdomain;
+
+/*
+ * SA1100 GPIO edge detection for IRQs:
+ * IRQs are generated on Falling-Edge, Rising-Edge, or both.
+ * Use this instead of directly setting GRER/GFER.
+ */
+static int GPIO_IRQ_rising_edge;
+static int GPIO_IRQ_falling_edge;
+static int GPIO_IRQ_mask = (1 << 11) - 1;
+static int GPIO_IRQ_wake_mask;
+
+static int sa1100_gpio_type(struct irq_data *d, unsigned int type)
+{
+	unsigned int mask;
+
+	mask = BIT(d->hwirq);
+
+	if (type == IRQ_TYPE_PROBE) {
+		if ((GPIO_IRQ_rising_edge | GPIO_IRQ_falling_edge) & mask)
+			return 0;
+		type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
+	}
+
+	if (type & IRQ_TYPE_EDGE_RISING) {
+		GPIO_IRQ_rising_edge |= mask;
+	} else
+		GPIO_IRQ_rising_edge &= ~mask;
+	if (type & IRQ_TYPE_EDGE_FALLING) {
+		GPIO_IRQ_falling_edge |= mask;
+	} else
+		GPIO_IRQ_falling_edge &= ~mask;
+
+	writel_relaxed(GPIO_IRQ_rising_edge & GPIO_IRQ_mask,
+			gpio_regbase + GRER_OFFSET);
+	writel_relaxed(GPIO_IRQ_falling_edge & GPIO_IRQ_mask,
+			gpio_regbase + GFER_OFFSET);
+
+	return 0;
+}
+
+/*
+ * GPIO IRQs must be acknowledged.
+ */
+static void sa1100_gpio_ack(struct irq_data *d)
+{
+	writel_relaxed(BIT(d->hwirq), gpio_regbase + GEDR_OFFSET);
+}
+
+static int sa1100_gpio_wake(struct irq_data *d, unsigned int on)
+{
+	if (on)
+		GPIO_IRQ_wake_mask |= BIT(d->hwirq);
+	else
+		GPIO_IRQ_wake_mask &= ~BIT(d->hwirq);
+
+	return sa11x0_gpio_set_wake(d->hwirq, on);
+}
+
+/*
+ * IRQ11 (GPIO11 through 27) handler.  We enter here with the
+ * irq_controller_lock held, and IRQs disabled.  Decode the IRQ
+ * and call the handler.
+ */
+static void
+sa1100_high_gpio_handler(unsigned int irq, struct irq_desc *desc)
+{
+	unsigned int mask;
+
+	mask = readl_relaxed(gpio_regbase + GEDR_OFFSET) & 0xfffff800;
+	do {
+		/*
+		 * clear down all currently active IRQ sources.
+		 * We will be processing them all.
+		 */
+		writel_relaxed(mask, gpio_regbase + GEDR_OFFSET);
+
+		irq = IRQ_GPIO11;
+		mask >>= 11;
+		do {
+			if (mask & 1)
+				generic_handle_irq(irq);
+			mask >>= 1;
+			irq++;
+		} while (mask);
+
+		mask = readl_relaxed(gpio_regbase + GEDR_OFFSET) & 0xfffff800;
+	} while (mask);
+}
+
+/*
+ * Like GPIO0 to 10, GPIO11-27 IRQs need to be handled specially.
+ * In addition, the IRQs are all collected up into one bit in the
+ * interrupt controller registers.
+ */
+static void sa1100_high_gpio_mask(struct irq_data *d)
+{
+	unsigned int mask = BIT(d->hwirq);
+	unsigned int r;
+
+	GPIO_IRQ_mask &= ~mask;
+
+	r = readl_relaxed(gpio_regbase + GRER_OFFSET);
+	r &= ~mask;
+	writel_relaxed(r, gpio_regbase + GRER_OFFSET);
+	r = readl_relaxed(gpio_regbase + GFER_OFFSET);
+	r &= ~mask;
+	writel_relaxed(r, gpio_regbase + GFER_OFFSET);
+}
+
+static void sa1100_high_gpio_unmask(struct irq_data *d)
+{
+	unsigned int mask = BIT(d->hwirq);
+
+	GPIO_IRQ_mask |= mask;
+
+	writel_relaxed(GPIO_IRQ_rising_edge & GPIO_IRQ_mask,
+			gpio_regbase + GRER_OFFSET);
+	writel_relaxed(GPIO_IRQ_falling_edge & GPIO_IRQ_mask,
+			gpio_regbase + GFER_OFFSET);
+}
+
+static struct irq_chip sa1100_low_gpio_chip = {
+	.name		= "GPIO-l",
+	.irq_ack	= sa1100_gpio_ack,
+	.irq_mask	= sa1100_mask_irq,
+	.irq_unmask	= sa1100_unmask_irq,
+	.irq_set_type	= sa1100_gpio_type,
+	.irq_set_wake	= sa1100_gpio_wake,
+};
+
+static int sa1100_low_gpio_irqdomain_map(struct irq_domain *d,
+		unsigned int irq, irq_hw_number_t hwirq)
+{
+	irq_set_chip_and_handler(irq, &sa1100_low_gpio_chip,
+				 handle_edge_irq);
+	set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+
+	return 0;
+}
+
+static struct irq_domain_ops sa1100_low_gpio_irqdomain_ops = {
+	.map = sa1100_low_gpio_irqdomain_map,
+	.xlate = irq_domain_xlate_onetwocell,
+};
+
+static struct irq_domain *sa1100_low_gpio_irqdomain;
+
+static struct irq_chip sa1100_high_gpio_chip = {
+	.name		= "GPIO-h",
+	.irq_ack	= sa1100_gpio_ack,
+	.irq_mask	= sa1100_high_gpio_mask,
+	.irq_unmask	= sa1100_high_gpio_unmask,
+	.irq_set_type	= sa1100_gpio_type,
+	.irq_set_wake	= sa1100_gpio_wake,
+};
+
+static int sa1100_high_gpio_irqdomain_map(struct irq_domain *d,
+		unsigned int irq, irq_hw_number_t hwirq)
+{
+	irq_set_chip_and_handler(irq, &sa1100_high_gpio_chip,
+				 handle_edge_irq);
+	set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+
+	return 0;
+}
+
+static struct irq_domain_ops sa1100_high_gpio_irqdomain_ops = {
+	.map = sa1100_high_gpio_irqdomain_map,
+	.xlate = irq_domain_xlate_onetwocell,
+};
+
+static struct irq_domain *sa1100_high_gpio_irqdomain;
 
 static struct resource irq_resource =
 	DEFINE_RES_MEM_NAMED(0x90050000, SZ_64K, "irqs");
@@ -420,13 +389,13 @@ void __init sa1100_init_irq(void)
 	 */
 	writel_relaxed(1, irq_regbase + ICCR_OFFSET);
 
-	sa1100_low_gpio_irqdomain = irq_domain_add_legacy(NULL,
-			11, 0, 0,
-			&sa1100_low_gpio_irqdomain_ops, NULL);
-
 	sa1100_normal_irqdomain = irq_domain_add_legacy(NULL,
 			21, 11, 11,
 			&sa1100_normal_irqdomain_ops, NULL);
+
+	sa1100_low_gpio_irqdomain = irq_domain_add_legacy(NULL,
+			11, 0, 0,
+			&sa1100_low_gpio_irqdomain_ops, NULL);
 
 	sa1100_high_gpio_irqdomain = irq_domain_add_legacy(NULL,
 			17, 32, 11,
