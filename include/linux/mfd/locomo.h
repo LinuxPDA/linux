@@ -53,7 +53,37 @@
 /* SPI interface */
 #define LOCOMO_SPI	0x60
 #define LOCOMO_SPIMD	0x00		/* SPI mode setting */
+#define LOCOMO_SPIMD_LOOPBACK (1 << 15)	/* loopback tx to rx 	*/
+#define LOCOMO_SPIMD_MSB1ST   (1 << 14)	/* send MSB first 	*/
+#define LOCOMO_SPIMD_DOSTAT   (1 << 13)	/* transmit line is idle high */
+#define LOCOMO_SPIMD_TCPOL    (1 << 11)	/* transmit CPOL (maybe affects CPHA too) */
+#define LOCOMO_SPIMD_RCPOL    (1 << 10)	/* receive CPOL (maybe affects CPHA too) */
+#define	LOCOMO_SPIMD_TDINV    (1 << 9)	/* invert transmit line */
+#define LOCOMO_SPIMD_RDINV    (1 << 8)	/* invert receive line */
+#define LOCOMO_SPIMD_XON      (1 << 7)	/* enable spi controller clock */
+#define LOCOMO_SPIMD_XEN      (1 << 6)	/* clock bit write enable xon must be off, wait 300 us before xon->1 */
+#define LOCOMO_SPIMD_XSEL     0x0018 	/* clock select 		*/
+#define CLOCK_18MHZ	    0		/* 18,432 MHz clock 	*/
+#define CLOCK_22MHZ	    1		/* 22,5792 MHz clock	*/
+#define CLOCK_25MHZ	    2		/* 24,576 MHz clock	*/
+#define LOCOMO_SPIMD_CLKSEL   0x7
+#define DIV_1		    0		/* don't divide clock   */
+#define DIV_2		    1		/* divide clock by two	*/
+#define DIV_4		    2		/* divide clock by four */
+#define DIV_8		    3		/* divide clock by eight*/
+#define DIV_64		    4		/* divide clock by 64 */
+
 #define LOCOMO_SPICT	0x04		/* SPI mode control */
+#define LOCOMO_SPICT_CRC16_7_B 	(1 << 15) 	/* 0: crc16 1: crc7 */
+#define LOCOMO_SPICT_CRCRX_TX_B	(1 << 14)
+#define LOCOMO_SPICT_CRCRESET_B	(1 << 13)
+#define LOCOMO_SPICT_CEN	(1 << 7)	/* ?? enable */
+#define LOCOMO_SPICT_CS		(1 << 6)	/* chip select */
+#define LOCOMO_SPICT_UNIT16	(1 << 5) 	/* 0: 8 bit units, 1: 16 bit unit */
+#define LOCOMO_SPICT_ALIGNEN	(1 << 2)	/* align transfer enable */
+#define LOCOMO_SPICT_RXWEN	(1 << 1)	/* continous receive */
+#define LOCOMO_SPICT_RXUEN	(1 << 0)	/* aligned receive */
+
 #define LOCOMO_SPIST	0x08		/* SPI status */
 #define	LOCOMO_SPI_TEND	(1 << 3)	/* Transfer end bit */
 #define	LOCOMO_SPI_REND	(1 << 2)	/* Receive end bit */

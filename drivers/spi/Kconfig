@@ -220,6 +220,14 @@ config SPI_LM70_LLP
 	  which interfaces to an LM70 temperature sensor using
 	  a parallel port.
 
+config SPI_LOCOMO
+	tristate "Locomo SPI master"
+	depends on MFD_LOCOMO
+	select SPI_BITBANG
+	help
+	  This enables using the SPI controller as present in the LoCoMo
+	  chips. It is probably only usefull on the Sharp SL-5x00 PDA family.
+
 config SPI_MPC52xx
 	tristate "Freescale MPC52xx SPI (non-PSC) controller support"
 	depends on PPC_MPC52xx
