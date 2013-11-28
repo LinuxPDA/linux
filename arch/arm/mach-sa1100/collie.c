@@ -30,6 +30,8 @@
 #include <linux/timer.h>
 #include <linux/gpio.h>
 #include <linux/pda_power.h>
+#include <linux/mmc/host.h>
+#include <linux/spi/mmc_spi.h>
 
 #include <video/sa1100fb.h>
 
@@ -247,6 +249,51 @@ static struct platform_device collie_locomo_device = {
 	.resource	= locomo_resources,
 };
 
+static int collie_mmc_init(struct device *dev,
+		irqreturn_t (*isr)(int, void*), void *mmc)
+{
+	int ret = gpio_request(COLLIE_GPIO_CARD_POWER, "MMC power");
+	if (!ret)
+		ret = gpio_direction_output(COLLIE_GPIO_CARD_POWER, 0);
+	if (ret)
+		gpio_free(COLLIE_GPIO_CARD_POWER);
+	return ret;
+}
+
+static void collie_mmc_exit(struct device *dev, void *mmc)
+{
+	gpio_free(COLLIE_GPIO_CARD_POWER);
+}
+
+static void collie_mmc_setpower(struct device *dev, unsigned int mask)
+{
+	gpio_set_value(COLLIE_GPIO_CARD_POWER, !!mask);
+}
+
+static struct mmc_spi_platform_data collie_mmc_data = {
+	.init		= collie_mmc_init,
+	.exit		= collie_mmc_exit,
+	.setpower	= collie_mmc_setpower,
+	.detect_delay 	= 200,
+	.powerup_msecs  = 200,
+	.ocr_mask 	= MMC_VDD_32_33 | MMC_VDD_33_34,
+	.flags		= MMC_SPI_USE_CD_GPIO | MMC_SPI_USE_RO_GPIO,
+	.cd_gpio	= COLLIE_GPIO_CARD_DETECT,
+	.ro_gpio	= COLLIE_GPIO_CARD_RO,
+	.caps2		= MMC_CAP2_RO_ACTIVE_HIGH,
+};
+
+static struct spi_board_info collie_spi_board_info[] __initdata = {
+	{
+		.modalias	= "mmc_spi",
+		.platform_data	= &collie_mmc_data,
+		.max_speed_hz	= 25000000,
+		.bus_num	= 0,
+		.chip_select	= 0,
+		.mode		= SPI_MODE_0, // FIXME 0?
+	},
+};
+
 static struct platform_device *devices[] __initdata = {
 	&collie_locomo_device,
 	&colliescoop_device,
@@ -375,6 +422,9 @@ static void __init collie_init(void)
 	sa11x0_register_mtd(&collie_flash_data, collie_flash_resources,
 			    ARRAY_SIZE(collie_flash_resources));
 	sa11x0_register_mcp(&collie_mcp_data);
+
+	spi_register_board_info(collie_spi_board_info,
+			ARRAY_SIZE(collie_spi_board_info));
 }
 
 static struct map_desc collie_io_desc[] __initdata = {
