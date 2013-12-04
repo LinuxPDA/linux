@@ -431,3 +431,12 @@ int sa11x0_sc_set_wake(unsigned int irq, unsigned int on)
 		PWER &= ~PWER_RTC;
 	return 0;
 }
+
+extern void __init
+xscale_timer_init(void __iomem *base,
+		int irq,
+		unsigned long clock_tick_rate);
+void __init sa1100_timer_init(void)
+{
+	xscale_timer_init(OSMR0, IRQ_OST0, 3686400);
+}

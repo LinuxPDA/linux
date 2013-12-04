@@ -28,6 +28,8 @@
 #include <mach/reset.h>
 #include <mach/smemc.h>
 #include <mach/pxa3xx-regs.h>
+#include <mach/regs-ost.h>
+#include <mach/irqs.h>
 
 #include "generic.h"
 
@@ -94,4 +96,13 @@ static struct map_desc common_io_desc[] __initdata = {
 void __init pxa_map_io(void)
 {
 	iotable_init(ARRAY_AND_SIZE(common_io_desc));
+}
+
+extern void __init
+xscale_timer_init(void __iomem *base,
+		int irq,
+		unsigned long clock_tick_rate);
+void __init pxa_timer_init(void)
+{
+	xscale_timer_init(OSMR0, IRQ_OST0, get_clock_tick_rate());
 }
