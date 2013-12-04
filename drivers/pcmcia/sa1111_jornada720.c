@@ -9,6 +9,7 @@
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <asm/hardware/sa1111.h>
@@ -91,7 +92,7 @@ static struct pcmcia_low_level jornada720_pcmcia_ops = {
 	.nr			= 2,
 };
 
-int pcmcia_jornada720_init(struct device *dev)
+int pcmcia_jornada720_init(struct sa1111_dev *dev)
 {
 	int ret = -ENODEV;
 
