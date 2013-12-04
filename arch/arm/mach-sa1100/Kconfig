@@ -48,7 +48,6 @@ endchoice
 config SA1100_COLLIE
 	bool "Sharp Zaurus SL5500"
 	# FIXME: select ARM_SA11x0_CPUFREQ
-	select SHARP_LOCOMO
 	select SHARP_PARAM
 	select SHARP_SCOOP
 	help

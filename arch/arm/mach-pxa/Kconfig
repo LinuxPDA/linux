@@ -483,7 +483,7 @@ config MACH_POODLE
 	bool "Enable Sharp SL-5600 (Poodle) Support"
 	depends on PXA_SHARPSL
 	select PXA25x
-	select SHARP_LOCOMO
+	select MFD_LOCOMO
 
 config MACH_CORGI
 	bool "Enable Sharp SL-C700 (Corgi) Support"

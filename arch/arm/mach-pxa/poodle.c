@@ -29,6 +29,7 @@
 #include <linux/spi/ads7846.h>
 #include <linux/spi/pxa2xx_spi.h>
 #include <linux/mtd/sharpsl.h>
+#include <linux/mfd/locomo.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -47,7 +48,6 @@
 #include <linux/platform_data/video-pxafb.h>
 
 #include <asm/hardware/scoop.h>
-#include <asm/hardware/locomo.h>
 #include <asm/mach/sharpsl_param.h>
 
 #include "generic.h"
@@ -177,7 +177,21 @@ static struct resource locomo_resources[] = {
 };
 
 static struct locomo_platform_data locomo_info = {
-	.irq_base	= IRQ_BOARD_START,
+	.gpio_data = {
+		.gpio_base = POODLE_LOCOMO_GPIO_BASE,
+	},
+	.lcd_data = {
+		.comadj	          = 118,
+		.gpio_lcd_vsha_on = POODLE_GPIO_LCD_VSHA_ON,
+		.gpio_lcd_vshd_on = POODLE_GPIO_LCD_VSHD_ON,
+		.gpio_lcd_vee_on  = POODLE_GPIO_LCD_VEE_ON,
+		.gpio_lcd_mod     = POODLE_GPIO_LCD_MOD,
+	},
+	.bl_data = {
+		.gpio_fl_vr       = POODLE_GPIO_FL_VR,
+	},
+	.gpio_amp1_on	= -1,
+	.gpio_amp2_on	= -1,
 };
 
 struct platform_device poodle_locomo_device = {
@@ -189,8 +203,6 @@ struct platform_device poodle_locomo_device = {
 		.platform_data	= &locomo_info,
 	},
 };
-
-EXPORT_SYMBOL(poodle_locomo_device);
 
 #if defined(CONFIG_SPI_PXA2XX) || defined(CONFIG_SPI_PXA2XX_MODULE)
 static struct pxa2xx_spi_master poodle_spi_info = {
@@ -442,6 +454,9 @@ static void __init poodle_init(void)
 	pxa_set_stuart_info(NULL);
 
 	platform_scoop_config = &poodle_pcmcia_config;
+
+	if (sharpsl_param.comadj != -1)
+		locomo_info.lcd_data.comadj = sharpsl_param.comadj;
 
 	ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	if (ret)

@@ -28,16 +28,10 @@
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/delay.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/interrupt.h>
-#include <linux/ioport.h>
-
-#include <asm/hardware/locomo.h>
-#include <asm/irq.h>
-
-MODULE_AUTHOR("John Lenz <lenz@cs.wisc.edu>");
-MODULE_DESCRIPTION("LoCoMo keyboard driver");
-MODULE_LICENSE("GPL");
+#include <linux/io.h>
+#include <linux/mfd/locomo.h>
 
 #define LOCOMOKBD_NUMKEYS	128
 
@@ -75,7 +69,8 @@ struct locomokbd {
 	struct input_dev *input;
 	char phys[32];
 
-	unsigned long base;
+	void __iomem *base;
+	int irq;
 	spinlock_t lock;
 
 	struct timer_list timer;
@@ -84,37 +79,37 @@ struct locomokbd {
 };
 
 /* helper functions for reading the keyboard matrix */
-static inline void locomokbd_charge_all(unsigned long membase)
+static inline void locomokbd_charge_all(void __iomem *membase)
 {
-	locomo_writel(0x00FF, membase + LOCOMO_KSC);
+	writew(0x00FF, membase + LOCOMO_KSC);
 }
 
-static inline void locomokbd_activate_all(unsigned long membase)
+static inline void locomokbd_activate_all(void __iomem *membase)
 {
 	unsigned long r;
 
-	locomo_writel(0, membase + LOCOMO_KSC);
-	r = locomo_readl(membase + LOCOMO_KIC);
+	writew(0, membase + LOCOMO_KSC);
+	r = readw(membase + LOCOMO_KIC);
 	r &= 0xFEFF;
-	locomo_writel(r, membase + LOCOMO_KIC);
+	writew(r, membase + LOCOMO_KIC);
 }
 
-static inline void locomokbd_activate_col(unsigned long membase, int col)
+static inline void locomokbd_activate_col(void __iomem *membase, int col)
 {
 	unsigned short nset;
 	unsigned short nbset;
 
 	nset = 0xFF & ~(1 << col);
 	nbset = (nset << 8) + nset;
-	locomo_writel(nbset, membase + LOCOMO_KSC);
+	writew(nbset, membase + LOCOMO_KSC);
 }
 
-static inline void locomokbd_reset_col(unsigned long membase, int col)
+static inline void locomokbd_reset_col(void __iomem *membase, int col)
 {
 	unsigned short nbset;
 
 	nbset = ((0xFF & ~(1 << col)) << 8) + 0xFF;
-	locomo_writel(nbset, membase + LOCOMO_KSC);
+	writew(nbset, membase + LOCOMO_KSC);
 }
 
 /*
@@ -129,7 +124,7 @@ static void locomokbd_scankeyboard(struct locomokbd *locomokbd)
 	unsigned int row, col, rowd;
 	unsigned long flags;
 	unsigned int num_pressed;
-	unsigned long membase = locomokbd->base;
+	void __iomem *membase = locomokbd->base;
 
 	spin_lock_irqsave(&locomokbd->lock, flags);
 
@@ -141,7 +136,7 @@ static void locomokbd_scankeyboard(struct locomokbd *locomokbd)
 		locomokbd_activate_col(membase, col);
 		udelay(KB_DELAY);
 
-		rowd = ~locomo_readl(membase + LOCOMO_KIB);
+		rowd = ~readw(membase + LOCOMO_KIB);
 		for (row = 0; row < KB_ROWS; row++) {
 			unsigned int scancode, pressed, key;
 
@@ -194,11 +189,11 @@ static irqreturn_t locomokbd_interrupt(int irq, void *dev_id)
 	struct locomokbd *locomokbd = dev_id;
 	u16 r;
 
-	r = locomo_readl(locomokbd->base + LOCOMO_KIC);
+	r = readw(locomokbd->base + LOCOMO_KIC);
 	if ((r & 0x0001) == 0)
 		return IRQ_HANDLED;
 
-	locomo_writel(r & ~0x0100, locomokbd->base + LOCOMO_KIC); /* Ack */
+	writew(r & ~0x0100, locomokbd->base + LOCOMO_KIC); /* Ack */
 
 	/** wait chattering delay **/
 	udelay(100);
@@ -222,8 +217,8 @@ static int locomokbd_open(struct input_dev *dev)
 	struct locomokbd *locomokbd = input_get_drvdata(dev);
 	u16 r;
 	
-	r = locomo_readl(locomokbd->base + LOCOMO_KIC) | 0x0010;
-	locomo_writel(r, locomokbd->base + LOCOMO_KIC);
+	r = readw(locomokbd->base + LOCOMO_KIC) | 0x0010;
+	writew(r, locomokbd->base + LOCOMO_KIC);
 	return 0;
 }
 
@@ -232,35 +227,38 @@ static void locomokbd_close(struct input_dev *dev)
 	struct locomokbd *locomokbd = input_get_drvdata(dev);
 	u16 r;
 	
-	r = locomo_readl(locomokbd->base + LOCOMO_KIC) & ~0x0010;
-	locomo_writel(r, locomokbd->base + LOCOMO_KIC);
+	r = readw(locomokbd->base + LOCOMO_KIC) & ~0x0010;
+	writew(r, locomokbd->base + LOCOMO_KIC);
 }
 
-static int locomokbd_probe(struct locomo_dev *dev)
+static int locomokbd_probe(struct platform_device *dev)
 {
 	struct locomokbd *locomokbd;
 	struct input_dev *input_dev;
 	int i, err;
+	struct resource *res;
 
-	locomokbd = kzalloc(sizeof(struct locomokbd), GFP_KERNEL);
+	locomokbd = devm_kzalloc(&dev->dev, sizeof(struct locomokbd), GFP_KERNEL);
+	if (!locomokbd)
+		return -ENOMEM;
+
 	input_dev = input_allocate_device();
-	if (!locomokbd || !input_dev) {
-		err = -ENOMEM;
-		goto err_free_mem;
-	}
+	if (!input_dev)
+		return -ENOMEM;
 
-	/* try and claim memory region */
-	if (!request_mem_region((unsigned long) dev->mapbase,
-				dev->length,
-				LOCOMO_DRIVER_NAME(dev))) {
-		err = -EBUSY;
-		printk(KERN_ERR "locomokbd: Can't acquire access to io memory for keyboard\n");
-		goto err_free_mem;
-	}
+	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -ENODEV;
 
-	locomo_set_drvdata(dev, locomokbd);
+	locomokbd->irq = platform_get_irq(dev, 0);
+	if (locomokbd->irq < 0)
+		return -ENXIO;
 
-	locomokbd->base = (unsigned long) dev->mapbase;
+	platform_set_drvdata(dev, locomokbd);
+
+	locomokbd->base = devm_ioremap_resource(&dev->dev, res);
+	if (IS_ERR(locomokbd->base))
+		return PTR_ERR(locomokbd->base);
 
 	spin_lock_init(&locomokbd->lock);
 
@@ -296,11 +294,15 @@ static int locomokbd_probe(struct locomo_dev *dev)
 		set_bit(locomokbd->keycode[i], input_dev->keybit);
 	clear_bit(0, input_dev->keybit);
 
+	writew(0, locomokbd->base + LOCOMO_KEYBOARD + LOCOMO_KIC);
+	writew(0, locomokbd->base + LOCOMO_KEYBOARD + LOCOMO_KIC);
+
 	/* attempt to get the interrupt */
-	err = request_irq(dev->irq[0], locomokbd_interrupt, 0, "locomokbd", locomokbd);
+	err = request_irq(locomokbd->irq, locomokbd_interrupt, 0,
+			"locomokbd", locomokbd);
 	if (err) {
 		printk(KERN_ERR "locomokbd: Can't get irq for keyboard\n");
-		goto err_release_region;
+		goto err_free_mem;
 	}
 
 	err = input_register_device(locomokbd->input);
@@ -309,54 +311,67 @@ static int locomokbd_probe(struct locomo_dev *dev)
 
 	return 0;
 
- err_free_irq:
-	free_irq(dev->irq[0], locomokbd);
- err_release_region:
-	release_mem_region((unsigned long) dev->mapbase, dev->length);
-	locomo_set_drvdata(dev, NULL);
- err_free_mem:
+err_free_irq:
+	free_irq(locomokbd->irq, locomokbd);
+err_free_mem:
+	platform_set_drvdata(dev, NULL);
 	input_free_device(input_dev);
-	kfree(locomokbd);
 
 	return err;
 }
 
-static int locomokbd_remove(struct locomo_dev *dev)
+static int locomokbd_remove(struct platform_device *dev)
 {
-	struct locomokbd *locomokbd = locomo_get_drvdata(dev);
+	struct locomokbd *locomokbd = platform_get_drvdata(dev);
 
-	free_irq(dev->irq[0], locomokbd);
+	free_irq(locomokbd->irq, locomokbd);
 
 	del_timer_sync(&locomokbd->timer);
 
 	input_unregister_device(locomokbd->input);
-	locomo_set_drvdata(dev, NULL);
-
-	release_mem_region((unsigned long) dev->mapbase, dev->length);
-
-	kfree(locomokbd);
+	platform_set_drvdata(dev, NULL);
 
 	return 0;
 }
 
-static struct locomo_driver keyboard_driver = {
-	.drv = {
-		.name = "locomokbd"
+#ifdef CONFIG_PM_SLEEP
+static int locomokbd_resume(struct device *dev)
+{
+	struct locomokbd *locomokbd = dev_get_drvdata(dev);
+	unsigned long flags;
+	u16 r;
+
+	spin_lock_irqsave(&locomokbd->lock, flags);
+
+	writew(0, locomokbd->base + LOCOMO_KSC);
+	r = readw(locomokbd->base + LOCOMO_KIC);
+	r &= 0xFEFF;
+	writew(r, locomokbd->base + LOCOMO_KIC);
+	writew(0x1, locomokbd->base + LOCOMO_KCMD);
+
+	spin_unlock_irqrestore(&locomokbd->lock, flags);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(locomo_kbd_pm, NULL, locomokbd_resume);
+#define LOCOMO_KBD_PM	(&locomo_kbd_pm)
+#else
+#define LOCOMO_KBD_PM	NULL
+#endif
+
+static struct platform_driver locomokbd_driver = {
+	.driver = {
+		.name	= "locomo-kbd",
+		.owner	= THIS_MODULE,
+		.pm	= LOCOMO_KBD_PM,
 	},
-	.devid	= LOCOMO_DEVID_KEYBOARD,
 	.probe	= locomokbd_probe,
 	.remove	= locomokbd_remove,
 };
 
-static int __init locomokbd_init(void)
-{
-	return locomo_driver_register(&keyboard_driver);
-}
+module_platform_driver(locomokbd_driver);
 
-static void __exit locomokbd_exit(void)
-{
-	locomo_driver_unregister(&keyboard_driver);
-}
-
-module_init(locomokbd_init);
-module_exit(locomokbd_exit);
+MODULE_AUTHOR("John Lenz <lenz@cs.wisc.edu>");
+MODULE_DESCRIPTION("LoCoMo keyboard driver");
+MODULE_LICENSE("GPL");
