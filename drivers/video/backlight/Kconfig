@@ -48,6 +48,14 @@ config LCD_LMS283GF05
 	  SPI driver for Samsung LMS283GF05. This provides basic support
 	  for powering the LCD up/down through a sysfs interface.
 
+config LCD_LOCOMO
+	tristate "Sharp LOCOMO LCD Driver"
+	depends on MFD_LOCOMO
+	default y
+	help
+	  If you have a Sharp Zaurus SL-5500 (Collie) or SL-5600 (Poodle) say y to
+	  enable the LCD driver.
+
 config LCD_LTV350QV
 	tristate "Samsung LTV350QV LCD Panel"
 	depends on SPI_MASTER
@@ -220,12 +228,12 @@ config BACKLIGHT_LM3533
 	  levels.
 
 config BACKLIGHT_LOCOMO
-	tristate "Sharp LOCOMO LCD/Backlight Driver"
-	depends on SHARP_LOCOMO
+	tristate "Sharp LOCOMO Backlight Driver"
+	depends on MFD_LOCOMO
 	default y
 	help
 	  If you have a Sharp Zaurus SL-5500 (Collie) or SL-5600 (Poodle) say y to
-	  enable the LCD/backlight driver.
+	  enable the backlight driver.
 
 config BACKLIGHT_OMAP1
 	tristate "OMAP1 PWL-based LCD Backlight"

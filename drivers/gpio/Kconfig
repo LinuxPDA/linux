@@ -373,6 +373,12 @@ config GPIO_TB10X
 	bool
 	select OF_GPIO
 
+config GPIO_LOCOMO
+	bool "Sharp LoCoMo GPIO support"
+	depends on MFD_LOCOMO
+	help
+	  Select this to support GPIO pins on Sharp LoCoMo Grid Array.
+
 comment "I2C GPIO expanders:"
 
 config GPIO_ARIZONA

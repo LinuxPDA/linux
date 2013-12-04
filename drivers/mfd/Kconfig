@@ -1173,6 +1173,14 @@ config MFD_STW481X
 	  in various ST Microelectronics and ST-Ericsson embedded
 	  Nomadik series.
 
+config MFD_LOCOMO
+	bool "Sharp LoCoMo support"
+	depends on ARM
+	select MFD_CORE
+	help
+	  Support for Sharp LoCoMo Grid Array found in Sharp SL-5x00
+          PDA family.
+
 endmenu
 endif
 
