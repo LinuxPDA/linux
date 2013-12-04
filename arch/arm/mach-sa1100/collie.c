@@ -28,6 +28,8 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/timer.h>
+#include <linux/gpio_keys.h>
+#include <linux/input.h>
 #include <linux/gpio.h>
 #include <linux/power/gpio-charger.h>
 #include <linux/mmc/host.h>
@@ -288,10 +290,43 @@ static struct spi_board_info collie_spi_board_info[] __initdata = {
 	},
 };
 
+static struct gpio_keys_button collie_gpio_keys[] = {
+	{
+		.type	= EV_PWR,
+		.code	= KEY_RESERVED,
+		.gpio	= COLLIE_GPIO_ON_KEY,
+		.desc	= "On key",
+		.wakeup	= 1,
+		.active_low = 1,
+	},
+	{
+		.type	= EV_PWR,
+		.code	= KEY_WAKEUP,
+		.gpio	= COLLIE_GPIO_WAKEUP,
+		.desc	= "Sync",
+		.wakeup = 1,
+		.active_low = 1,
+	},
+};
+
+static struct gpio_keys_platform_data collie_gpio_keys_data = {
+	.buttons	= collie_gpio_keys,
+	.nbuttons	= ARRAY_SIZE(collie_gpio_keys),
+};
+
+static struct platform_device collie_gpio_keys_device = {
+	.name	= "gpio-keys",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &collie_gpio_keys_data,
+	},
+};
+
 static struct platform_device *devices[] __initdata = {
 	&collie_locomo_device,
 	&colliescoop_device,
 	&collie_power_device,
+	&collie_gpio_keys_device,
 };
 
 static struct mtd_partition collie_partitions[] = {
